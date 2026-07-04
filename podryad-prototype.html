@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PODRYAD.KZ — прототип Telegram Mini App</title>
+<style>
+  :root{
+    /* page chrome — theme aware */
+    --ground:#EDE8E2;
+    --ground-2:#E3DCD3;
+    --ink:#1a1613;
+    --ink-soft:#6a625a;
+    --card:#ffffff;
+    --hair:#dcd4ca;
+    /* brand — fixed (the product is a white app with orange-red accents) */
+    --brand:#F0431D;
+    --brand-press:#CF340F;
+    --brand-tint:#FFF0EB;
+    --app-bg:#ffffff;
+    --app-ink:#161311;
+    --app-ink2:#7b736b;
+    --app-hair:#ECE7E1;
+    --app-panel:#F7F4F1;
+    --ok:#12A150;
+    --warn:#C97A0E;
+    --muted:#8b847c;
+    --radius:16px;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ground:#171310; --ground-2:#211b16; --ink:#f3ede6; --ink-soft:#b6a99c; --card:#221c17; --hair:#33291f; }
+  }
+  :root[data-theme="dark"]{ --ground:#171310; --ground-2:#211b16; --ink:#f3ede6; --ink-soft:#b6a99c; --card:#221c17; --hair:#33291f; }
+  :root[data-theme="light"]{ --ground:#EDE8E2; --ground-2:#E3DCD3; --ink:#1a1613; --ink-soft:#6a625a; --card:#ffffff; --hair:#dcd4ca; }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(240,67,29,.10), transparent 60%),
+      linear-gradient(180deg,var(--ground),var(--ground-2));
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:34px 22px 60px}
+
+  /* header */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:26px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(140deg,var(--brand),#ff7a45);
+    display:grid;place-items:center;box-shadow:0 6px 18px rgba(240,67,29,.35)}
+  .logo svg{width:26px;height:26px;display:block}
+  .wordmark{font-weight:800;letter-spacing:-.02em;font-size:24px;line-height:1}
+  .wordmark b{color:var(--brand)}
+  .tagline{color:var(--ink-soft);font-size:13.5px;margin-top:4px;max-width:52ch}
+  .role{display:flex;background:var(--card);border:1px solid var(--hair);border-radius:12px;padding:4px;gap:2px}
+  .role button{font:inherit;font-size:13px;font-weight:600;border:0;background:transparent;color:var(--ink-soft);
+    padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s}
+  .role button.on{background:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(240,67,29,.3)}
+
+  /* stage: phone + notes */
+  .stage{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:40px;align-items:start}
+  @media (max-width:760px){ .stage{grid-template-columns:1fr;gap:26px;justify-items:center} }
+
+  /* phone */
+  .phone{width:340px;background:#0c0a09;border-radius:44px;padding:12px;
+    box-shadow:0 30px 70px -20px rgba(20,10,0,.55), 0 0 0 2px rgba(255,255,255,.04) inset;position:relative}
+  .phone::after{content:"";position:absolute;left:50%;top:22px;transform:translateX(-50%);
+    width:110px;height:26px;background:#0c0a09;border-radius:16px;z-index:6}
+  .screen-outer{background:var(--app-bg);border-radius:33px;overflow:hidden;height:660px;
+    display:flex;flex-direction:column;position:relative;color:var(--app-ink)}
+  .statusbar{height:42px;flex:0 0 42px;display:flex;align-items:flex-end;justify-content:space-between;
+    padding:0 22px 6px;font-size:13px;font-weight:600;color:var(--app-ink)}
+  .statusbar .dots{display:flex;gap:5px;align-items:center}
+  .statusbar .dots span{width:16px;height:10px;border:1.5px solid var(--app-ink);border-radius:3px;opacity:.85}
+
+  /* tg header */
+  .tgbar{flex:0 0 46px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--app-hair)}
+  .tgbar .nav{width:34px;height:34px;border-radius:9px;border:0;background:transparent;cursor:pointer;
+    display:grid;place-items:center;color:var(--app-ink);font-size:19px}
+  .tgbar .nav:hover{background:var(--app-panel)}
+  .tgbar .ttl{flex:1;text-align:center;font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tgbar .nav.close{color:var(--app-ink2)}
+  .invisible{visibility:hidden}
+
+  /* screens */
+  .screens{position:relative;flex:1;overflow:hidden}
+  .screen{position:absolute;inset:0;overflow-y:auto;padding:16px 16px 26px;display:none;flex-direction:column;gap:12px}
+  .screen.active{display:flex;animation:slide .26s ease}
+  @keyframes slide{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+  .screen::-webkit-scrollbar{width:0}
+
+  .crumb{font-size:12px;color:var(--app-ink2);font-weight:600;letter-spacing:.01em;margin:-2px 0 2px}
+  .h{font-size:20px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+  .sub{font-size:13px;color:var(--app-ink2);line-height:1.45;margin-top:-4px}
+
+  /* buttons / rows */
+  .btn{font:inherit;border:0;cursor:pointer;border-radius:13px;padding:15px 16px;font-size:15px;font-weight:600;
+    text-align:left;display:flex;align-items:center;gap:12px;width:100%;background:var(--app-panel);color:var(--app-ink);
+    transition:.14s;border:1px solid transparent}
+  .btn:hover{border-color:var(--app-hair);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn .ic{width:34px;height:34px;border-radius:10px;background:var(--brand-tint);display:grid;place-items:center;
+    color:var(--brand);flex:0 0 34px}
+  .btn .ic svg{width:19px;height:19px}
+  .btn .chev{margin-left:auto;color:var(--app-ink2);font-size:17px}
+  .btn.primary{background:var(--brand);color:#fff;justify-content:center;box-shadow:0 8px 20px rgba(240,67,29,.32)}
+  .btn.primary:hover{background:var(--brand-press);border-color:transparent}
+  .btn.ghost{background:transparent;border:1px solid var(--app-hair);justify-content:center;font-weight:600}
+  .btn.sm{padding:11px 13px;font-size:14px;border-radius:11px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+
+  .list{display:flex;flex-direction:column;gap:9px}
+  .pillrow{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:999px;border:1px solid var(--app-hair);
+    background:var(--app-bg);color:var(--app-ink);cursor:pointer;transition:.14s;white-space:nowrap}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .chip.slim{padding:5px 10px;font-size:11.5px}
+
+  /* executor card in list */
+  .ecard{display:flex;gap:12px;padding:12px;border:1px solid var(--app-hair);border-radius:14px;background:var(--app-bg);
+    cursor:pointer;transition:.14s;text-align:left;font:inherit;width:100%}
+  .ecard:hover{border-color:var(--brand);transform:translateY(-1px);box-shadow:0 8px 20px -12px rgba(240,67,29,.4)}
+  .ava{width:56px;height:56px;border-radius:12px;flex:0 0 56px;display:grid;place-items:center;font-weight:800;color:#fff;
+    font-size:19px;background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.08) 0 7px, transparent 7px 14px),
+      linear-gradient(140deg,var(--brand),#ff8a5a)}
+  .ec-main{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+  .ec-name{font-weight:700;font-size:15px}
+  .ec-meta{font-size:12.5px;color:var(--app-ink2);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .dot{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.5}
+  .star{color:var(--warn);font-weight:700}
+  .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:5px}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .b-ready{color:var(--ok);background:rgba(18,161,80,.12)}
+  .b-busy{color:var(--warn);background:rgba(201,122,14,.14)}
+  .b-mod{color:var(--muted);background:rgba(139,132,124,.16)}
+  .b-active{color:var(--brand);background:var(--brand-tint)}
+
+  /* detail */
+  .hero{height:150px;border-radius:16px;background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.06) 0 10px, transparent 10px 20px),
+      linear-gradient(140deg,var(--brand),#ff8a5a);display:flex;align-items:flex-end;padding:12px;position:relative}
+  .hero .tag{background:rgba(255,255,255,.92);color:var(--app-ink);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .gallery i{display:block;height:66px;border-radius:10px;background:
+      repeating-linear-gradient(45deg,var(--app-panel) 0 8px, #efeae4 8px 16px)}
+  .facts{border:1px solid var(--app-hair);border-radius:14px;overflow:hidden}
+  .facts div{display:flex;justify-content:space-between;gap:12px;padding:10px 13px;font-size:13.5px;border-top:1px solid var(--app-hair)}
+  .facts div:first-child{border-top:0}
+  .facts span:first-child{color:var(--app-ink2)}
+  .facts span:last-child{font-weight:600;text-align:right}
+  .review{border:1px solid var(--app-hair);border-radius:12px;padding:11px 13px;font-size:13px}
+  .review .r-top{display:flex;justify-content:space-between;font-weight:700;font-size:12.5px;margin-bottom:4px}
+  .sticky-cta{position:sticky;bottom:0;padding-top:8px;background:linear-gradient(180deg,transparent,var(--app-bg) 30%)}
+
+  /* form (admin) */
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:12px;font-weight:700;color:var(--app-ink2)}
+  .field input,.field select,.field textarea{font:inherit;font-size:14px;padding:11px 12px;border-radius:11px;
+    border:1px solid var(--app-hair);background:var(--app-bg);color:var(--app-ink);width:100%}
+  .field textarea{resize:none;height:64px}
+
+  /* bottom tabbar (admin) */
+  .tabbar{flex:0 0 60px;display:flex;border-top:1px solid var(--app-hair);background:var(--app-bg)}
+  .tabbar button{flex:1;border:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--app-ink2);padding-top:6px}
+  .tabbar button svg{width:21px;height:21px}
+  .tabbar button.on{color:var(--brand)}
+
+  .toast{position:absolute;left:16px;right:16px;bottom:18px;background:#141311;color:#fff;padding:13px 15px;border-radius:13px;
+    font-size:13.5px;font-weight:600;box-shadow:0 14px 34px rgba(0,0,0,.4);opacity:0;transform:translateY(14px);
+    transition:.28s;pointer-events:none;z-index:20;display:flex;gap:10px;align-items:center}
+  .toast.show{opacity:1;transform:none}
+  .toast .ok{color:#39d98a}
+
+  .reveal{border:1px dashed var(--brand);background:var(--brand-tint);border-radius:12px;padding:12px 14px;display:none}
+  .reveal.show{display:block;animation:slide .24s ease}
+  .reveal b{color:var(--brand)}
+
+  .note-hint{font-size:12px;color:var(--app-ink2);text-align:center;padding:2px 6px}
+
+  /* notes panel */
+  .notes{align-self:start;position:sticky;top:24px;max-width:520px}
+  @media (max-width:760px){ .notes{position:static;max-width:340px} }
+  .notes h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:0 0 14px;font-weight:700}
+  .ncard{background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:20px 22px}
+  .ncard .kick{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--brand);
+    background:var(--brand-tint);padding:5px 11px;border-radius:999px;margin-bottom:12px}
+  .ncard h3{margin:0 0 8px;font-size:19px;letter-spacing:-.01em}
+  .ncard p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.6}
+  .ncard ul{margin:12px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13.5px;line-height:1.6}
+  .legend{display:flex;gap:16px;margin-top:18px;flex-wrap:wrap}
+  .legend div{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft)}
+  .legend b{display:inline-block;width:10px;height:10px;border-radius:3px}
+  .footnote{margin-top:22px;color:var(--ink-soft);font-size:12.5px;line-height:1.6}
+  a.inline{color:var(--brand);font-weight:600;text-decoration:none}
+  a.inline:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 20h18M6 20V10l6-4 6 4v10M10 20v-5h4v5" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <div class="wordmark">PODRYAD<b>.KZ</b></div>
+        </div>
+      </div>
+      <div class="tagline">Кликабельный прототип Telegram Mini App: поиск строительных исполнителей по схеме город → категория → компетенция → анкета → контакт.</div>
+    </div>
+    <div class="role" role="tablist" aria-label="Роль">
+      <button id="r-viewer" class="on" onclick="setRole('viewer')">👷 Заказчик</button>
+      <button id="r-admin" onclick="setRole('admin')">🛠 Admin / Editor</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <!-- PHONE -->
+    <div class="phone">
+      <div class="screen-outer">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span class="dots"><span></span></span>
+        </div>
+        <div class="tgbar">
+          <button class="nav" id="backBtn" onclick="back()" aria-label="Назад">‹</button>
+          <div class="ttl" id="tgTitle">PODRYAD.KZ</div>
+          <button class="nav close" aria-label="Закрыть">✕</button>
+        </div>
+
+        <div class="screens" id="screens"><!-- screens injected --></div>
+
+        <div class="tabbar" id="tabbar" style="display:none"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="notes">
+      <h2>Что на экране</h2>
+      <div class="ncard">
+        <span class="kick" id="n-kick">Заказчик</span>
+        <h3 id="n-title">Главное меню</h3>
+        <p id="n-text">Пять крупных кнопок, минимум текста — строитель без объяснений понимает, куда нажимать.</p>
+        <ul id="n-list"></ul>
+        <div class="legend">
+          <div><b style="background:#12A150"></b> Готов выйти</div>
+          <div><b style="background:#C97A0E"></b> Временно занят</div>
+          <div><b style="background:#F0431D"></b> Активен</div>
+          <div><b style="background:#8b847c"></b> На модерации</div>
+        </div>
+      </div>
+      <div class="footnote">
+        👆 Прототип интерактивный — нажимайте кнопки внутри телефона и переключайте роль сверху.<br>
+        Данные и фото — демонстрационные. Финальный стиль: белый фон, чёрный текст, оранжево-красные акценты.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- data ---------------- */
+const CITIES = ["Алматы","Астана","Караганда","Шымкент","Костанай","Кокшетау","Уральск","Павлодар","Актобе","Другой город"];
+const CATS = {
+  "Отделочные работы":["Штукатурка гипсовая","Штукатурка цементная","Механизированная штукатурка","Левкас","Шпаклёвка","Покраска","Обои","ГКЛ","Потолки","Армстронг","Ламинат","Линолеум","Плитка","Керамогранит","Санузлы под ключ"],
+  "Каменные работы":["Газоблок","Кирпич","Керамоблок","Перегородки","Облицовочный кирпич"],
+  "Монолит":["Фундамент","Арматура","Опалубка","Бетонирование","Колонны","Перекрытия","Стены"],
+  "Фасады":["Мокрый фасад","Вентилируемый фасад","Керамогранит","Травертин","Композит","Фиброцемент"],
+  "Кровля":["Металлочерепица","Профлист","Мягкая кровля","Мембранная кровля","Наплавляемая кровля"],
+  "Электрика":["Черновая электрика","Чистовая электрика","Слаботочные сети","Пожарная сигнализация","Видеонаблюдение","Домофония"],
+  "Сантехника":["Водоснабжение","Канализация","Отопление","Тёплый пол","Котельные"],
+  "Инженерные сети":["Вентиляция","Кондиционирование","Дымоудаление","Автоматизация"],
+  "Металлоконструкции":["Сварочные работы","Навесы","Ангары","Лестницы","Металлокаркас"],
+  "Благоустройство":["Брусчатка","Бордюры","Асфальтирование","Озеленение","Заборы"],
+  "Спецтехника":["Экскаватор","Манипулятор","Автокран","Автовышка","Самосвал"],
+  "Ремонт под ключ":["Квартиры под ключ","Дома под ключ","Коммерческие помещения","Офисы","Подъезды"]
+};
+const EXECUTORS = [
+  {id:1,name:'Бригада «Ремонт+»',type:'Бригада',mono:'Р+',team:6,rating:'4.8',status:'ready',spec:'Штукатурка · ГКЛ · Плитка',
+   exp:'8 лет',tools:'Да',transport:'Да',contract:'Да',pay:'Наличные / Безнал',travel:'Да',phone:'+7 701 •• •• 42',
+   about:'Отделка квартир и коммерции под ключ. Свой инструмент и штукатурные станции.'},
+  {id:2,name:'Асан Байболов',type:'Частное лицо',mono:'АБ',team:1,rating:'4.5',status:'busy',spec:'Штукатурка · Шпаклёвка',
+   exp:'5 лет',tools:'Да',transport:'Нет',contract:'Нет',pay:'Наличные',travel:'Нет',phone:'+7 705 •• •• 18',
+   about:'Механизированная и ручная штукатурка. Работаю по Алматы и области.'},
+  {id:3,name:'ТОО «СтройМастер»',type:'ТОО',mono:'СМ',team:12,rating:'4.9',status:'active',spec:'Отделка · Монолит',
+   exp:'11 лет',tools:'Да',transport:'Да',contract:'Да',pay:'Безнал с НДС',travel:'Да',phone:'+7 727 •• •• 90',
+   about:'Компания полного цикла. Работаем по договору, закрывающие документы, гарантия.'}
+];
+const VOLUMES = [
+  {id:1,city:'Алматы',work:'Штукатурка стен',vol:'2 400 м²',price:'от 2 500 ₸/м²',term:'до 20.08',live:'Есть',adv:'Аванс 30%',st:'active'},
+  {id:2,city:'Астана',work:'Монолит перекрытий',vol:'900 м³',price:'договорная',term:'до 15.09',live:'Есть',adv:'Без аванса',st:'active'},
+  {id:3,city:'Шымкент',work:'Кровля мягкая',vol:'1 100 м²',price:'от 1 800 ₸/м²',term:'закрыто',live:'Нет',adv:'Аванс 20%',st:'closed'}
+];
+const ADMIN_ANKETAS = [
+  {id:1,name:'Бригада «Ремонт+»',city:'Алматы',status:'active'},
+  {id:2,name:'Асан Байболов',city:'Алматы',status:'busy'},
+  {id:3,name:'ТОО «СтройМастер»',city:'Астана',status:'active'},
+  {id:4,name:'Дамир (плиточник)',city:'Караганда',status:'mod'},
+  {id:5,name:'Бригада «ФасадПро»',city:'Шымкент',status:'mod'}
+];
+const LEADS = [
+  {who:'@nurlan_k',what:'Бригада «Ремонт+»',when:'сегодня 14:20'},
+  {who:'@aigerim',what:'ТОО «СтройМастер»',when:'сегодня 12:05'},
+  {who:'@build_astana',what:'Объём: Монолит, Астана',when:'вчера 18:40'}
+];
+const STATUS = {ready:['Готов выйти','b-ready'],busy:['Временно занят','b-busy'],active:['Активен','b-active'],mod:['На модерации','b-mod']};
+
+/* ---------------- icons ---------------- */
+const IC = {
+  search:'<path d="M11 4a7 7 0 105.2 11.7L21 20" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>',
+  form:'<path d="M6 3h9l4 4v14H6z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/><path d="M9 12h7M9 16h7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+  vol:'<path d="M4 20V9l8-5 8 5v11" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/><path d="M9 20v-6h6v6" stroke="currentColor" stroke-width="1.7" fill="none"/>',
+  doc:'<path d="M7 3h7l4 4v14H7z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/>',
+  help:'<circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M9.5 9.5a2.5 2.5 0 113.2 2.4c-.7.3-1.2.8-1.2 1.6M12 17h.01" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>',
+  city:'<path d="M4 21V7l6-3v17M14 21V9l6 3v9M4 21h16" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/>',
+  cat:'<path d="M4 5h7v7H4zM13 5h7v7h-7zM4 14h7v5H4zM13 14h7v5h-7z" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+  leads:'<path d="M16 20v-2a4 4 0 00-8 0v2M12 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>'
+};
+
+/* ---------------- state ---------------- */
+let role='viewer';
+let stack=[];            // {id, title}
+let sel={city:'Алматы', cat:'Отделочные работы', comp:'Штукатурка гипсовая'};
+let filters=new Set();
+let adminTab='anketas';
+
+const NOTES = {
+  menu:{k:'Заказчик',t:'Главное меню',x:'Пять крупных кнопок, минимум текста — строитель без объяснений понимает, куда нажимать.',l:['Найти исполнителя — основной сценарий','Разместить анкету — уходит админу на модерацию']},
+  cities:{k:'Заказчик · Шаг 1',t:'Выбор города',x:'10 городов + «Другой город». Выбранный город переносится в фильтры дальше.',l:[]},
+  categories:{k:'Заказчик · Шаг 2',t:'Категория работ',x:'12 категорий из ТЗ. Каждая раскрывает свой набор компетенций.',l:[]},
+  competencies:{k:'Заказчик · Шаг 3',t:'Компетенция',x:'Конкретный вид работ внутри категории — именно по нему фильтруется список.',l:[]},
+  executors:{k:'Заказчик · Шаг 4',t:'Список исполнителей',x:'Краткие карточки + мультифильтр: тип, готовность, договор, форма оплаты.',l:['Фильтры комбинируются','Статус готовности виден меткой']},
+  executor:{k:'Заказчик · Шаг 5',t:'Анкета исполнителя',x:'Все поля из ТЗ, фото работ, отзывы. Внизу закреплена кнопка «Получить контакт».',l:['Контакт раскрывается по нажатию','Каждый запрос фиксируется как лид']},
+  volumes:{k:'Заказчик',t:'Актуальные объёмы',x:'Тот же фильтр город → категория → объект. Контакты по объёмам — через администратора.',l:[]},
+  volume:{k:'Заказчик',t:'Карточка объёма',x:'Объём, цена, срок, проживание, аванс, статус актуально / закрыто.',l:[]},
+  docs:{k:'Заказчик',t:'Документы',x:'Оферта и дисклеймер: платформа не гарантирует заказ, а даёт информационный доступ и навигацию.',l:[]},
+  support:{k:'Заказчик',t:'Поддержка',x:'Прямой контакт администратора платформы.',l:[]},
+  'admin-anketas':{k:'Admin / Editor',t:'Анкеты',x:'Наполнение вручную. Фильтр по статусу, быстрый переход в редактирование.',l:['Приём / отклонение заявок','Назначение города, категории, статуса']},
+  'admin-anketa':{k:'Admin / Editor',t:'Редактирование анкеты',x:'Все поля карточки + фото. Здесь админ проставляет город, компетенции, статус и рейтинг.',l:['Принять · Отклонить · Сохранить','Смена статуса']},
+  'admin-volumes':{k:'Admin / Editor',t:'Объёмы',x:'CRUD по объёмам: создать, отредактировать, закрыть.',l:[]},
+  'admin-leads':{k:'Admin / Editor',t:'Лиды',x:'Кто и когда запросил контакт какого исполнителя или объёма — данные о спросе.',l:[]}
+};
+
+/* ---------------- render helpers ---------------- */
+const $screens=document.getElementById('screens');
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;}
+function badge(st){const [txt,cls]=STATUS[st];return `<span class="badge ${cls}">${txt}</span>`;}
+
+function setNotes(id){
+  const n=NOTES[id]; if(!n) return;
+  document.getElementById('n-kick').textContent=n.k;
+  document.getElementById('n-title').textContent=n.t;
+  document.getElementById('n-text').textContent=n.x;
+  const ul=document.getElementById('n-list'); ul.innerHTML=n.l.map(i=>`<li>${i}</li>`).join('');
+}
+
+/* screen builders return HTML string */
+const BUILD = {
+  menu:()=>`
+    <div class="h">Здравствуйте 👋</div>
+    <div class="sub">Найдите бригаду или специалиста за пару нажатий.</div>
+    <div class="list" style="margin-top:6px">
+      ${menuBtn('search','Найти исполнителя','go("cities")')}
+      ${menuBtn('form','Разместить анкету','go("docs2")')}
+      ${menuBtn('vol','Актуальные объёмы','go("volumes")')}
+      ${menuBtn('doc','Документы','go("docs")')}
+      ${menuBtn('help','Поддержка','go("support")')}
+    </div>`,
+
+  cities:()=>`
+    <div class="crumb">Найти исполнителя</div>
+    <div class="h">Ваш город</div>
+    <div class="list">${CITIES.map(c=>`<button class="btn sm" onclick="pick('city','${c}');go('categories')">
+      <span class="ic" style="width:26px;height:26px;flex-basis:26px">${svg('city',15)}</span>${c}<span class="chev">›</span></button>`).join('')}</div>`,
+
+  categories:()=>`
+    <div class="crumb">${sel.city}</div>
+    <div class="h">Категория работ</div>
+    <div class="list">${Object.keys(CATS).map(c=>`<button class="btn sm" onclick="pick('cat','${c}');go('competencies')">
+      <span class="ic" style="width:26px;height:26px;flex-basis:26px">${svg('cat',15)}</span>${c}<span class="chev">›</span></button>`).join('')}</div>`,
+
+  competencies:()=>`
+    <div class="crumb">${sel.city} › ${sel.cat}</div>
+    <div class="h">Компетенция</div>
+    <div class="list">${(CATS[sel.cat]||[]).map(c=>`<button class="btn sm" onclick="pick('comp','${c}');go('executors')">
+      ${c}<span class="chev">›</span></button>`).join('')}</div>`,
+
+  executors:()=>`
+    <div class="crumb">${sel.city} › ${sel.cat} › ${sel.comp}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div class="h">Исполнители</div><div class="sub">${EXECUTORS.length} найдено</div>
+    </div>
+    <div class="pillrow" id="fchips">
+      ${['Бригада','ИП / ТОО','Готов выйти','По договору','С НДС','Есть транспорт'].map(f=>`<span class="chip" onclick="toggleFilter(this,'${f}')">${f}</span>`).join('')}
+    </div>
+    <div class="list">${EXECUTORS.map(e=>ecard(e)).join('')}</div>`,
+
+  executor:()=>{const e=EXECUTORS.find(x=>x.id===sel.eid)||EXECUTORS[0];return `
+    <div class="hero"><span class="tag">${e.type}</span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+      <div class="h" style="flex:1">${e.name}</div>${badge(e.status)}
+    </div>
+    <div class="ec-meta"><span>${sel.city}</span><span class="dot"></span><span class="star">★ ${e.rating}</span><span class="dot"></span><span>${e.team} чел.</span></div>
+    <div class="sub">${e.about}</div>
+    <div class="pillrow">${e.spec.split(' · ').map(s=>`<span class="chip slim">${s}</span>`).join('')}</div>
+    <div class="facts">
+      ${fact('Опыт работы',e.exp)}${fact('Количество человек',e.team)}${fact('Готовность к выезду',e.travel)}
+      ${fact('Наличие инструмента',e.tools)}${fact('Наличие транспорта',e.transport)}
+      ${fact('Работает по договору',e.contract)}${fact('Форма оплаты',e.pay)}
+    </div>
+    <div class="sub" style="font-weight:700;color:var(--app-ink);margin-top:4px">Фото работ</div>
+    <div class="gallery"><i></i><i></i><i></i></div>
+    <div class="sub" style="font-weight:700;color:var(--app-ink)">Отзывы · ★ ${e.rating}</div>
+    <div class="review"><div class="r-top"><span>Нурлан К.</span><span class="star">★ 5.0</span></div>Сделали ровные стены в срок, всё чисто. Рекомендую.</div>
+    <div class="reveal" id="contactReveal">Контакт: <b>${e.phone}</b> · WhatsApp <b>${e.phone}</b></div>
+    <div class="sticky-cta"><button class="btn primary" onclick="getContact()">📞 Получить контакт</button></div>`;},
+
+  volumes:()=>`
+    <div class="crumb">Актуальные объёмы</div>
+    <div class="h">Открытые объёмы</div>
+    <div class="pillrow"><span class="chip on">Все города</span><span class="chip">Актуально</span><span class="chip">С проживанием</span></div>
+    <div class="list">${VOLUMES.map(v=>`<button class="ecard" onclick="pick('vid',${v.id});go('volume')">
+      <div class="ava" style="font-size:15px">${v.city.slice(0,2)}</div>
+      <div class="ec-main"><div class="ec-name">${v.work}</div>
+      <div class="ec-meta"><span>${v.city}</span><span class="dot"></span><span>${v.vol}</span><span class="dot"></span><span>${v.price}</span></div>
+      <div>${v.st==='active'?'<span class="badge b-ready">актуально</span>':'<span class="badge b-mod">закрыто</span>'}</div></div>
+      <span class="chev" style="align-self:center">›</span></button>`).join('')}</div>`,
+
+  volume:()=>{const v=VOLUMES.find(x=>x.id===sel.vid)||VOLUMES[0];return `
+    <div class="crumb">${v.city} › Объём</div>
+    <div class="h">${v.work}</div>
+    ${v.st==='active'?'<span class="badge b-ready" style="align-self:flex-start">актуально</span>':'<span class="badge b-mod" style="align-self:flex-start">закрыто</span>'}
+    <div class="facts">
+      ${fact('Город',v.city)}${fact('Объём',v.vol)}${fact('Цена',v.price)}${fact('Срок',v.term)}
+      ${fact('Проживание',v.live)}${fact('Аванс',v.adv)}${fact('Опубликовано','сегодня')}
+    </div>
+    <div class="sub">Контакты по объёму предоставляются через администратора платформы.</div>
+    <div class="sticky-cta"><button class="btn primary" onclick="toast('Заявка отправлена администратору',true)">Оставить заявку</button></div>`;},
+
+  docs:()=>`
+    <div class="h">Документы</div>
+    <div class="review">Платформа <b>не гарантирует</b> получение заказа. Мы предоставляем информационный доступ, размещение анкет, публикацию объёмов и удобную навигацию между заказчиком и исполнителем.</div>
+    <button class="btn sm">${svg('doc',16)} Публичная оферта<span class="chev">›</span></button>
+    <button class="btn sm">${svg('doc',16)} Правила размещения<span class="chev">›</span></button>
+    <button class="btn sm">${svg('doc',16)} Согласие на обработку данных<span class="chev">›</span></button>`,
+
+  docs2:()=>`
+    <div class="h">Разместить анкету</div>
+    <div class="sub">На MVP — короткая заявка. Полную анкету дозаполняет администратор, после модерации она появляется в поиске.</div>
+    <div class="field"><label>Имя / название бригады</label><input placeholder="Напр. Бригада «Ремонт+»"></div>
+    <div class="field"><label>Город</label><select>${CITIES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>Телефон / WhatsApp</label><input placeholder="+7 ___ ___ __ __"></div>
+    <div class="field"><label>Специализация</label><input placeholder="Напр. штукатурка, ГКЛ"></div>
+    <div class="pillrow"><span class="chip on">✓ Согласие на размещение данных</span></div>
+    <button class="btn primary" onclick="toast('Заявка отправлена на модерацию',true)">Отправить на модерацию</button>`,
+
+  support:()=>`
+    <div class="h">Поддержка</div>
+    <div class="sub">Пишите — поможем с поиском исполнителя или размещением анкеты.</div>
+    <button class="btn sm">${svg('help',16)} Написать администратору<span class="chev">›</span></button>`,
+
+  /* admin */
+  'admin-anketas':()=>`
+    <div class="h">Анкеты</div>
+    <div class="pillrow"><span class="chip on">Все</span><span class="chip">На модерации</span><span class="chip">Активные</span><span class="chip">Занятые</span></div>
+    <div class="list">${ADMIN_ANKETAS.map(a=>`<button class="ecard" onclick="pick('eid',${a.id>3?1:a.id});go('admin-anketa')">
+      <div class="ava" style="font-size:15px">${a.name.replace(/[«»]/g,'').slice(0,2).toUpperCase()}</div>
+      <div class="ec-main"><div class="ec-name">${a.name}</div>
+      <div class="ec-meta"><span>${a.city}</span></div>${badge(a.status)}</div>
+      <span class="chev" style="align-self:center">›</span></button>`).join('')}</div>`,
+
+  'admin-anketa':()=>{const e=EXECUTORS.find(x=>x.id===sel.eid)||EXECUTORS[0];return `
+    <div class="crumb">Анкеты › Редактирование</div>
+    <div class="h">${e.name}</div>
+    <div class="field"><label>Название / ФИО</label><input value="${e.name}"></div>
+    <div class="grid2">
+      <div class="field"><label>Город</label><select>${CITIES.map(c=>`<option ${c===sel.city?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="field"><label>Тип</label><select><option>${e.type}</option><option>Бригада</option><option>ИП</option><option>ТОО</option></select></div>
+    </div>
+    <div class="field"><label>Категория / компетенции</label><input value="${e.spec}"></div>
+    <div class="grid2">
+      <div class="field"><label>Кол-во человек</label><input value="${e.team}"></div>
+      <div class="field"><label>Статус</label><select><option>Активен</option><option>Готов выйти</option><option>Временно занят</option><option>На модерации</option><option>Архив</option></select></div>
+    </div>
+    <div class="field"><label>Описание</label><textarea>${e.about}</textarea></div>
+    <div class="sub" style="font-weight:700;color:var(--app-ink)">Фото</div>
+    <div class="gallery"><i></i><i></i><i></i></div>
+    <div class="grid2"><button class="btn ghost sm" onclick="toast('Анкета сохранена',true)">Сохранить</button>
+      <button class="btn primary sm" onclick="toast('Анкета опубликована',true)">Опубликовать</button></div>
+    <div class="grid2"><button class="btn ghost sm" onclick="toast('Заявка принята',true)">✓ Принять</button>
+      <button class="btn ghost sm" onclick="toast('Заявка отклонена')">✕ Отклонить</button></div>`;},
+
+  'admin-volumes':()=>`
+    <div class="h">Объёмы</div>
+    <button class="btn primary sm" onclick="toast('Новый объём')">+ Создать объём</button>
+    <div class="list">${VOLUMES.map(v=>`<div class="ecard" style="cursor:default">
+      <div class="ava" style="font-size:15px">${v.city.slice(0,2)}</div>
+      <div class="ec-main"><div class="ec-name">${v.work}</div>
+      <div class="ec-meta"><span>${v.city}</span><span class="dot"></span><span>${v.price}</span></div>
+      ${v.st==='active'?'<span class="badge b-ready">актуально</span>':'<span class="badge b-mod">закрыто</span>'}</div></div>`).join('')}</div>`,
+
+  'admin-leads':()=>`
+    <div class="h">Лиды</div>
+    <div class="sub">Запросы контактов — данные о спросе.</div>
+    <div class="list">${LEADS.map(l=>`<div class="ecard" style="cursor:default">
+      <div class="ava" style="font-size:15px;background:linear-gradient(140deg,#5b6470,#8b95a3)">${svg('leads',20)}</div>
+      <div class="ec-main"><div class="ec-name">${l.who}</div>
+      <div class="ec-meta"><span>${l.what}</span></div><div class="sub" style="margin:0">${l.when}</div></div>
+      <span class="badge b-active" style="align-self:center">новый</span></div>`).join('')}</div>`
+};
+
+function menuBtn(ic,label,act){return `<button class="btn" onclick='${act}'><span class="ic">${svg(ic,19)}</span>${label}<span class="chev">›</span></button>`;}
+function svg(name,s){return `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none">${IC[name]}</svg>`;}
+function fact(k,v){return `<div><span>${k}</span><span>${v}</span></div>`;}
+function ecard(e){return `<button class="ecard" onclick="pick('eid',${e.id});go('executor')">
+  <div class="ava">${e.mono}</div>
+  <div class="ec-main"><div class="ec-name">${e.name}</div>
+  <div class="ec-meta"><span>${sel.city}</span><span class="dot"></span><span class="star">★ ${e.rating}</span><span class="dot"></span><span>${e.team} чел.</span></div>
+  <div class="ec-meta"><span>${e.spec}</span></div>${badge(e.status)}</div></button>`;}
+
+/* ---------------- navigation ---------------- */
+const TITLES={menu:'PODRYAD.KZ',cities:'Город',categories:'Категория',competencies:'Компетенция',executors:'Исполнители',
+  executor:'Анкета',volumes:'Объёмы',volume:'Объём',docs:'Документы',docs2:'Разместить анкету',support:'Поддержка',
+  'admin-anketas':'Анкеты','admin-anketa':'Редактирование','admin-volumes':'Объёмы','admin-leads':'Лиды'};
+
+function render(id){
+  $screens.innerHTML='';
+  const scr=el(`<div class="screen active"></div>`);
+  scr.innerHTML=BUILD[id]();
+  $screens.appendChild(scr);
+  document.getElementById('tgTitle').textContent=TITLES[id]||'PODRYAD.KZ';
+  document.getElementById('backBtn').classList.toggle('invisible', stack.length<=1);
+  setNotes(id==='docs2'?'menu':id);
+  updateTabs(id);
+}
+function go(id){ stack.push(id); render(id); }
+function back(){ if(stack.length>1){stack.pop(); render(stack[stack.length-1]); document.getElementById('contactReveal')?.classList.remove('show');} }
+function pick(k,v){ sel[k]=v; }
+
+function toggleFilter(elm,f){ elm.classList.toggle('on'); filters.has(f)?filters.delete(f):filters.add(f); }
+
+function getContact(){
+  document.getElementById('contactReveal')?.classList.add('show');
+  toast('Контакт открыт · запрос сохранён как лид',true);
+}
+
+/* admin tabbar */
+function updateTabs(id){
+  const bar=document.getElementById('tabbar');
+  if(role!=='admin'){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  const tabs=[['admin-anketas','form','Анкеты'],['admin-volumes','vol','Объёмы'],['admin-leads','leads','Лиды']];
+  const activeRoot=id.startsWith('admin-anketa')?'admin-anketas':id;
+  bar.innerHTML=tabs.map(([t,ic,lbl])=>`<button class="${t===activeRoot?'on':''}" onclick="adminGo('${t}')">${svg(ic,21)}${lbl}</button>`).join('');
+}
+function adminGo(t){ stack=[t]; render(t); }
+
+/* role switch */
+function setRole(r){
+  role=r;
+  document.getElementById('r-viewer').classList.toggle('on',r==='viewer');
+  document.getElementById('r-admin').classList.toggle('on',r==='admin');
+  if(r==='admin'){ stack=['admin-anketas']; render('admin-anketas'); }
+  else { stack=['menu']; render('menu'); }
+}
+
+/* toast */
+let toastT;
+function toast(msg,ok){
+  const t=document.getElementById('toast');
+  t.innerHTML=(ok?'<span class="ok">✓</span>':'')+msg;
+  t.classList.add('show'); clearTimeout(toastT);
+  toastT=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* init */
+stack=['menu']; render('menu');
+</script>
+</body>
+</html>
